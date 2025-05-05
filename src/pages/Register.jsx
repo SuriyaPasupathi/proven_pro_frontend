@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
+import axios from 'axios';
 
 const RegisterForm = () => {
   const [formData, setFormData] = useState({
@@ -78,6 +80,37 @@ const RegisterForm = () => {
     } catch (err) {
       console.error('Error:', err);
       setMessage('❌ Something went wrong.');
+      setMessageColor('red');
+    }
+  };
+  
+  const handleGoogleLogin = async (credentialResponse) => {
+    try {
+      console.log("Google response:", credentialResponse);
+      
+      // Send the token to your backend
+      const response = await axios.post('http://127.0.0.1:8000/api/google-auth/', {
+        token: credentialResponse.credential
+      });
+
+      console.log("Backend response:", response.data);
+      
+      const { access, refresh, user } = response.data;
+
+      localStorage.setItem('access_token', access);
+      localStorage.setItem('refresh_token', refresh);
+      localStorage.setItem('user', JSON.stringify(user));
+
+      // Since this is the Register page, always redirect to subscription
+      // This ensures new users go through the subscription flow
+      setMessage('✅ Account created! Redirecting to subscription page...');
+      setMessageColor('green');
+      setTimeout(() => {
+        navigate('/subscription');
+      }, 1500);
+    } catch (error) {
+      console.error('Google login error:', error);
+      setMessage(`❌ Google login failed: ${error.response?.data?.error || 'Unknown error'}`);
       setMessageColor('red');
     }
   };
@@ -172,15 +205,29 @@ const RegisterForm = () => {
             </button>
           </form>
 
+          {/* Divider */}
+          <div className="flex items-center my-4">
+            <div className="flex-grow border-t border-gray-300"></div>
+            <span className="mx-2 text-sm text-gray-500">OR</span>
+            <div className="flex-grow border-t border-gray-300"></div>
+          </div>
+
+          {/* Google Sign-in */}
           <div className="mt-4">
-            <button className="w-full flex items-center justify-center gap-2 border border-gray-400 py-2 rounded-md hover:bg-gray-100 transition">
-              <img
-                src="https://upload.wikimedia.org/wikipedia/commons/4/4a/Logo_2013_Google.png"
-                alt="Google"
-                className="w-5 h-5"
-              />
-              <span className="text-sm font-medium">Sign up with Google</span>
-            </button>
+            <GoogleLogin
+              onSuccess={handleGoogleLogin}
+              onError={() => {
+                console.log('Google Login Failed');
+                setMessage('❌ Google login failed');
+                setMessageColor('red');
+              }}
+              useOneTap
+              theme="outline"
+              text="signup_with"
+              shape="rectangular"
+              logo_alignment="center"
+              width="100%"
+            />
           </div>
 
           <p className="text-sm text-center text-gray-600 mt-4">

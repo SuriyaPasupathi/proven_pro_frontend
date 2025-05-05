@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { GoogleLogin } from '@react-oauth/google';
 
 const LoginForm = () => {
   const [form, setForm] = useState({ email: '', password: '' });
@@ -52,6 +53,30 @@ const LoginForm = () => {
       }
     } catch (error) {
       console.error('Login error:', error);
+    }
+  };
+
+  const handleGoogleLogin = async (credentialResponse) => {
+    try {
+      // Send the token to your backend
+      const response = await axios.post('http://127.0.0.1:8000/api/google-auth/', {
+        token: credentialResponse.credential
+      });
+
+      const { access, refresh, user } = response.data;
+
+      localStorage.setItem('access_token', access);
+      localStorage.setItem('refresh_token', refresh);
+      localStorage.setItem('user', JSON.stringify(user));
+
+      // Check if user has a profile
+      if (response.data.has_profile) {
+        navigate('/Userprofile');
+      } else {
+        navigate('/subscription');
+      }
+    } catch (error) {
+      console.error('Google login error:', error);
     }
   };
 
@@ -139,17 +164,18 @@ const LoginForm = () => {
           </div>
 
           {/* Google Sign-in */}
-          <button
-            type="button"
-            className="w-full flex items-center justify-center border border-gray-400 py-2 rounded-lg hover:bg-gray-100 transition duration-300"
-          >
-            <img
-              src="./src/assets/search.png"
-              alt="Google"
-              className="w-5 h-5 mr-3"
+          <div className="mt-4">
+            <GoogleLogin
+              onSuccess={handleGoogleLogin}
+              onError={() => console.log('Google Login Failed')}
+              useOneTap
+              theme="outline"
+              text="signin_with"
+              shape="rectangular"
+              logo_alignment="center"
+              width="100%"
             />
-            Sign in with Google
-          </button>
+          </div>
 
           {/* Register */}
           <div className="mt-6 text-center">
