@@ -73,92 +73,105 @@ function SubscriptionPage() {
     }
   ];
 
-  const handleSubscription = async (plan) => {
-    setLoading(true);
-    setError(null);
+  const handleSubscription = (plan) => {
+    if (plan.type === 'free') {
+      // If Free plan, navigate directly to the profile page
+      navigate("/CreateAccount", { state: { subscription_type: plan.type } });
+    } else {
+      // For Standard and Premium, navigate to CreateAccount page
+      navigate("/CreateAccount", { state: { subscription_type: plan.type } });
+    }
+  };
 
-    try {
-      const token = localStorage.getItem('access_token');
+
+  
+
+  // const handleSubscription = async (plan) => {
+  //   setLoading(true);
+  //   setError(null);
+
+  //   try {
+  //     const token = localStorage.getItem('access_token');
       
-      if (!token) {
-        navigate("/login", { 
-          state: { 
-            from: '/subscription', 
-            plan: plan.type,
-            returnUrl: '/subscription'
-          } 
-        });
-        return;
-      }
+  //     if (!token) {
+  //       navigate("/login", { 
+  //         state: { 
+  //           from: '/subscription', 
+  //           plan: plan.type,
+  //           returnUrl: '/subscription'
+  //         } 
+  //       });
+  //       return;
+  //     }
 
-      if (plan.type === 'free') {
-        const response = await axios.post(
-          'http://localhost:8000/api/update-subscription/',
-          { subscription_type: plan.type },
-          {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
+  //     if (plan.type === 'free') {
+  //       const response = await axios.post(
+  //         'http://localhost:8000/api/update-subscription/',
+  //         { subscription_type: plan.type },
+  //         {
+  //           headers: {
+  //             'Authorization': `Bearer ${token}`,
+  //             'Content-Type': 'application/json'
+  //           }
+  //         }
+  //       );
 
-        if (response.data.has_profile) {
-          navigate("/profile");
-        } else {
-          navigate("/CreateAccount", { 
-            state: { subscription_type: plan.type } 
-          });
-        }
-      } else {
-        // Handle paid subscription
-        try {
-          console.log('Initiating payment for:', plan.type);
-          const response = await axios.post(
-            'http://localhost:8000/api/create-payment-intent/',
-            { subscription_type: plan.type },
-            {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              }
-            }
-          );
+  //       if (response.data.has_profile) {
+  //         navigate("/profile");
+  //       } else {
+  //         navigate("/CreateAccount", { 
+  //           state: { subscription_type: plan.type } 
+  //         });
+  //       }
+  //     } else {  
+  //       // Handle paid subscription
+  //       try {
+  //         console.log('Initiating payment for:', plan.type);
+  //         const response = await axios.post(
+  //           'http://localhost:8000/api/create-payment-intent/',
+  //           { subscription_type: plan.type },
+  //           {
+  //             headers: {
+  //               'Authorization': `Bearer ${token}`,
+  //               'Content-Type': 'application/json'
+  //             }
+  //           }
+  //         );
 
-          console.log('Payment response:', response.data);
-          const stripe = await loadStripe(response.data.publicKey);
-          const { error } = await stripe.redirectToCheckout({
-            sessionId: response.data.sessionId
-          });
+  //         console.log('Payment response:', response.data);
+  //         const stripe = await loadStripe(response.data.publicKey);
+  //         const { error } = await stripe.redirectToCheckout({
+  //           sessionId: response.data.sessionId
+  //         });
 
-          if (error) {
-            console.error('Stripe error:', error);
-            setError(error.message);
-          }
-        } catch (err) {
-          console.error('Payment error:', err);
-          if (err.response?.data?.code === 'token_not_valid') {
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
-            navigate("/login", { 
-              state: { 
-                from: '/subscription', 
-                plan: plan.type,
-                returnUrl: '/subscription'
-              } 
-            });
-            return;
-          }
-          throw err;
-        }
-      }
-    } catch (err) {
-      console.error('Subscription error:', err);
-      setError(err.response?.data?.message || 'An error occurred during subscription');
-    } finally {
-      setLoading(false);
-    }
-  };
+  //         if (error) {
+  //           console.error('Stripe error:', error);
+  //           setError(error.message);
+  //         }
+  //       } catch (err) {
+  //         console.error('Payment error:', err);
+  //         if (err.response?.data?.code === 'token_not_valid') {
+  //           localStorage.removeItem('access_token');
+  //           localStorage.removeItem('refresh_token');
+  //           navigate("/login", { 
+  //             state: { 
+  //               from: '/subscription', 
+  //               plan: plan.type,
+  //               returnUrl: '/subscription'
+  //             } 
+  //           });
+  //           return;
+  //         }
+  //         throw err;
+  //       }
+  //     }
+  //   } catch (err) {
+  //     console.error('Subscription error:', err);
+  //     setError(err.response?.data?.message || 'An error occurred during subscription');
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   return (
     <div className="bg-gray-100 min-h-screen">
