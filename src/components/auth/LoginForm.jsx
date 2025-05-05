@@ -144,7 +144,7 @@ const LoginForm = () => {
             className="w-full flex items-center justify-center border border-gray-400 py-2 rounded-lg hover:bg-gray-100 transition duration-300"
           >
             <img
-              src="https://upload.wikimedia.org/wikipedia/commons/4/4a/Logo_2013_Google.png"
+              src="./src/assets/search.png"
               alt="Google"
               className="w-5 h-5 mr-3"
             />
