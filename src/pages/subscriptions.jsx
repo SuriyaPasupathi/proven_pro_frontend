@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { loadStripe } from '@stripe/stripe-js';
+
 
 function CheckIcon() {
   return (
@@ -39,6 +39,21 @@ function SubscriptionPage() {
       ]
     },
     {
+      name: "Standard",
+      price: "10",
+      type: "standard",
+      popular: false,
+      features: [
+        "Profile Name and Image",
+        "Review Ratings",
+        "Job Title and Job Specialization",
+        "Client's Previous Reviews",
+        "Copy URL Link",
+        "Email, Mobile and Social Media Link",
+        "Displays Services, Experiences, Skills and Tools"
+      ]
+    },
+    {
       name: "Premium",
       price: "20",
       type: "premium",
@@ -55,123 +70,70 @@ function SubscriptionPage() {
         "Video Introduction",
         "Exhibit Portfolio / Previous Works"
       ]
-    },
-    {
-      name: "Standard",
-      price: "10",
-      type: "standard",
-      popular: false,
-      features: [
-        "Profile Name and Image",
-        "Review Ratings",
-        "Job Title and Job Specialization",
-        "Client's Previous Reviews",
-        "Copy URL Link",
-        "Email, Mobile and Social Media Link",
-        "Displays Services, Experiences, Skills and Tools"
-      ]
     }
   ];
 
-  const handleSubscription = (plan) => {
+  const handleSubscribe = (plan) => {
     if (plan.type === 'free') {
       // If Free plan, navigate directly to the profile page
-      navigate("/CreateAccount", { state: { subscription_type: plan.type } });
-    } else {
-      // For Standard and Premium, navigate to CreateAccount page
-      navigate("/CreateAccount", { state: { subscription_type: plan.type } });
-    }
-  };
-
-
-  
-
-  // const handleSubscription = async (plan) => {
-  //   setLoading(true);
-  //   setError(null);
-
-  //   try {
-  //     const token = localStorage.getItem('access_token');
+      console.log("Subscribing to free plan, navigating to CreateAccount with type:", plan.type);
       
-  //     if (!token) {
-  //       navigate("/login", { 
-  //         state: { 
-  //           from: '/subscription', 
-  //           plan: plan.type,
-  //           returnUrl: '/subscription'
-  //         } 
-  //       });
-  //       return;
-  //     }
+      // Store in localStorage as a backup
+      localStorage.setItem('pending_subscription_type', plan.type);
+      
+      // Log what we're storing and passing
+      console.log("Storing in localStorage:", plan.type);
+      console.log("Passing to CreateAccount state:", { subscription_type: plan.type });
+      
+      // Navigate with state
+      navigate("/CreateAccount", { 
+        state: { subscription_type: plan.type } 
+      });
+    } else {
+      // For paid plans, initiate payment
+      setLoading(true);
+      
+      // Store the subscription type in localStorage before initiating payment
+      localStorage.setItem('pending_subscription_type', plan.type);
+      
+      initiatePayment(plan);
+    }
+  };
 
-  //     if (plan.type === 'free') {
-  //       const response = await axios.post(
-  //         'http://localhost:8000/api/update-subscription/',
-  //         { subscription_type: plan.type },
-  //         {
-  //           headers: {
-  //             'Authorization': `Bearer ${token}`,
-  //             'Content-Type': 'application/json'
-  //           }
-  //         }
-  //       );
-
-  //       if (response.data.has_profile) {
-  //         navigate("/profile");
-  //       } else {
-  //         navigate("/CreateAccount", { 
-  //           state: { subscription_type: plan.type } 
-  //         });
-  //       }
-  //     } else {  
-  //       // Handle paid subscription
-  //       try {
-  //         console.log('Initiating payment for:', plan.type);
-  //         const response = await axios.post(
-  //           'http://localhost:8000/api/create-payment-intent/',
-  //           { subscription_type: plan.type },
-  //           {
-  //             headers: {
-  //               'Authorization': `Bearer ${token}`,
-  //               'Content-Type': 'application/json'
-  //             }
-  //           }
-  //         );
-
-  //         console.log('Payment response:', response.data);
-  //         const stripe = await loadStripe(response.data.publicKey);
-  //         const { error } = await stripe.redirectToCheckout({
-  //           sessionId: response.data.sessionId
-  //         });
-
-  //         if (error) {
-  //           console.error('Stripe error:', error);
-  //           setError(error.message);
-  //         }
-  //       } catch (err) {
-  //         console.error('Payment error:', err);
-  //         if (err.response?.data?.code === 'token_not_valid') {
-  //           localStorage.removeItem('access_token');
-  //           localStorage.removeItem('refresh_token');
-  //           navigate("/login", { 
-  //             state: { 
-  //               from: '/subscription', 
-  //               plan: plan.type,
-  //               returnUrl: '/subscription'
-  //             } 
-  //           });
-  //           return;
-  //         }
-  //         throw err;
-  //       }
-  //     }
-  //   } catch (err) {
-  //     console.error('Subscription error:', err);
-  //     setError(err.response?.data?.message || 'An error occurred during subscription');
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
+  const initiatePayment = async (plan) => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      alert('You must be logged in to subscribe');
+      navigate('/login');
+      return;
+    }
+    
+    try {
+      // Handle paid subscription with GCash via PayMongo
+      console.log(`Initiating GCash payment for: ${plan.type} plan ($${plan.price})`);
+      
+      const response = await axios.post(
+        'http://localhost:8000/api/create-gcash-payment/',
+        { subscription_type: plan.type },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      // Store subscription type in localStorage for later use
+      localStorage.setItem('pending_subscription_type', plan.type);
+      
+      // Redirect to checkout URL
+      window.location.href = response.data.checkoutUrl;
+    } catch (error) {
+      console.error('Payment error:', error);
+      setLoading(false);
+      alert('Failed to initiate payment. Please try again.');
+    }
+  };
 
   return (
     <div className="bg-gray-100 min-h-screen">
@@ -185,117 +147,59 @@ function SubscriptionPage() {
       {/* Header section */}
       <div className="text-center pt-16 pb-8 px-4">
         <h1 className="text-4xl font-bold text-gray-900 mb-2">Ready to START?</h1>
-        <p className="text-gray-600 italic">Sed eiusmod tempor incidunt ut labore et dolore magna aliqua.</p>
+        <p className="text-gray-600 italic">Choose the plan that's right for you</p>
       </div>
       
       {/* Plans section */}
       <div className="max-w-screen-lg mx-auto px-4 pb-16 grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Basic Plan */}
-        <div className="bg-white rounded shadow-md overflow-hidden">
-          <div className="p-6">
-            <h2 className="text-2xl font-bold mb-2">Basic</h2>
-            <div className="text-4xl font-bold mb-6">Free</div>
+        {plans.map((plan, index) => (
+          <div 
+            key={index} 
+            className={`bg-white rounded-lg shadow-md overflow-hidden ${
+              plan.popular ? 'border-2 border-blue-500 relative' : ''
+            }`}
+          >
+            {plan.popular && (
+              <div className="bg-blue-500 text-white text-xs font-bold uppercase py-1 px-2 absolute top-0 right-0">
+                Most Popular
+              </div>
+            )}
             
-            <div className="mb-4">
-              <p className="font-medium mb-2">Includes:</p>
-              <ul className="space-y-2">
-                {plans[0].features.map((feature, idx) => (
-                  <li key={idx} className="flex items-center">
-                    <span className="flex-shrink-0 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center mr-2">
-                      <span className="text-white text-xs">✓</span>
-                    </span>
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
+            <div className="p-6">
+              <h2 className="text-2xl font-bold mb-2">{plan.name}</h2>
+              <div className="text-4xl font-bold mb-6">
+                {plan.price === "Free" ? "Free" : `$${plan.price}`}
+                {plan.price !== "Free" && <span className="text-base font-normal text-gray-600">/month</span>}
+              </div>
+              
+              <div className="mb-6">
+                <p className="font-medium mb-2">Includes:</p>
+                <ul className="space-y-2">
+                  {plan.features.map((feature, idx) => (
+                    <li key={idx} className="flex items-start">
+                      <CheckIcon />
+                      <span className="ml-2">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              <button
+                onClick={() => handleSubscribe(plan)}
+                disabled={loading}
+                className={`w-full py-2 px-4 rounded font-medium transition-colors ${
+                  plan.type === 'free'
+                    ? 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                    : plan.popular
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-blue-500 text-white hover:bg-blue-600'
+                }`}
+              >
+                {plan.type === 'free' ? 'Sign Up Now' : 'Subscribe Now'}
+              </button>
             </div>
           </div>
-          
-          <div className="px-6 pb-6">
-            <button
-              onClick={() => handleSubscription(plans[0])}
-              disabled={loading}
-              className="w-full py-3 border border-gray-800 text-gray-800 font-semibold rounded hover:bg-gray-100 transition duration-200"
-            >
-              Sign Up Now
-            </button>
-          </div>
-        </div>
-        
-        {/* Premium Plan - Best Choice */}
-        <div className="bg-white rounded shadow-md overflow-hidden border-t-4 border-gray-700">
-          <div className="bg-gray-700 text-white text-center py-2 font-semibold">
-            Best Choice
-          </div>
-          <div className="p-6">
-            <h2 className="text-2xl font-bold mb-2">Premium</h2>
-            <div className="flex items-baseline mb-6">
-              <span className="text-sm mr-1">USD</span>
-              <span className="text-4xl font-bold">20</span>
-              <span className="text-sm">/annually</span>
-            </div>
-            
-            <div className="mb-4">
-              <p className="font-medium mb-2">Includes:</p>
-              <ul className="space-y-2">
-                {plans[1].features.map((feature, idx) => (
-                  <li key={idx} className="flex items-center">
-                    <span className="flex-shrink-0 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center mr-2">
-                      <span className="text-white text-xs">✓</span>
-                    </span>
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          
-          <div className="px-6 pb-6">
-            <button
-              onClick={() => handleSubscription(plans[1])}
-              disabled={loading}
-              className="w-full py-3 bg-gray-800 text-white font-semibold rounded hover:bg-gray-800 transition duration-200"
-            >
-              Sign Up Now
-            </button>
-          </div>
-        </div>
-        
-        {/* Standard Plan */}
-        <div className="bg-white rounded shadow-md overflow-hidden">
-          <div className="p-6">
-            <h2 className="text-2xl font-bold mb-2">Standard</h2>
-            <div className="flex items-baseline mb-6">
-              <span className="text-sm mr-1">USD</span>
-              <span className="text-4xl font-bold">10</span>
-              <span className="text-sm">/annually</span>
-            </div>
-            
-            <div className="mb-4">
-              <p className="font-medium mb-2">Includes:</p>
-              <ul className="space-y-2">
-                {plans[2].features.map((feature, idx) => (
-                  <li key={idx} className="flex items-center">
-                    <span className="flex-shrink-0 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center mr-2">
-                      <span className="text-white text-xs">✓</span>
-                    </span>
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          
-          <div className="px-6 pb-6">
-            <button
-              onClick={() => handleSubscription(plans[2])}
-              disabled={loading}
-              className="w-full py-3 border border-gray-800 text-gray-800 font-semibold rounded hover:bg-gray-100 transition duration-200"
-            >
-              Sign Up Now
-            </button>
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );
